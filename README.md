@@ -11,7 +11,7 @@ Setup ini akan menjadi **fondasi utama** untuk Praktikan 2 (backend) dan Praktik
 ## 🧩 Arsitektur
 
 ```
-runa (Ansible Controller)
+C09 (Ansible Controller)
    ↓ SSH
 node1 (backend target)
 node2 (frontend target)
@@ -37,16 +37,16 @@ ansible/
 
 Pastikan environment berikut tersedia:
 
-* 1 VM controller: `runa` (nama bebas btw)
+* 1 VM controller: `C09`
 * 2 VM target: `node1`, `node2`
-* Ansible terinstall di `runa`
+* Ansible terinstall di `C09`
 * SSH key authentication sudah aktif (tanpa password)
 
 ---
 
 ## 🔑 Setup SSH (WAJIB)
 
-Dari dalam `runa`:
+Dari dalam `C09`:
 
 ```bash
 ssh ubuntu@192.168.1.14
