@@ -1,4 +1,4 @@
-# 📦 README – Praktikan 1 (Docker Setup dengan Ansible)
+# Praktikan 1 (Docker Setup dengan Ansible)
 
 ## 👤 Deskripsi
 
