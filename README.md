@@ -360,3 +360,169 @@ Expected:
 - Docker berjalan di kedua node
 - Backend ter-deploy dan terverifikasi di node1
 - Menunggu deploy frontend di node2
+
+---
+
+# Praktikan 3 (Frontend Deployment)
+
+## Deskripsi
+
+Praktikan 3 bertanggung jawab atas deployment frontend berbasis HTML, CSS, dan JavaScript dengan server Nginx pada `node2` menggunakan Docker Compose yang diorkestrasi oleh Ansible. Frontend ini menyediakan antarmuka web untuk simulasi login dan registrasi yang terhubung ke backend di `node1`.
+
+---
+
+## Struktur Folder (Update)
+
+```
+ansible/
+├── inventory.yml
+├── playbook.yml
+├── group_vars/
+│   ├── backend.yml
+│   └── frontend.yml
+└── roles/
+    ├── docker/
+    │   └── tasks/
+    │       └── main.yml
+    ├── backend/
+    │   ├── files/
+    │   │   ├── index.js
+    │   │   └── package.json
+    │   ├── tasks/
+    │   │   └── main.yml
+    │   └── templates/
+    │       ├── .env.j2
+    │       ├── Dockerfile.j2
+    │       └── docker-compose.yml.j2
+    └── frontend/
+        ├── files/
+        │   ├── index.html
+        │   └── nginx.conf
+        ├── tasks/
+        │   └── main.yml
+        └── templates/
+            ├── config.js.j2
+            ├── Dockerfile.j2
+            └── docker-compose.yml.j2
+```
+
+---
+
+## Konfigurasi Variabel
+
+File: `group_vars/frontend.yml`
+
+```yaml
+frontend_port: 80
+backend_url: "http://172.30.133.59:3000"
+```
+
+---
+
+## Cakupan Role Frontend
+
+Role `frontend` menjalankan task berikut secara berurutan:
+
+1. Membuka port frontend (80) pada firewall menggunakan module `ufw`.
+2. Membuat direktori deployment `/opt/frontend`.
+3. Deploy template `Dockerfile.j2`, `config.js.j2`, dan `docker-compose.yml.j2` menggunakan Jinja2.
+4. Deploy source code aplikasi (`index.html`, `nginx.conf`).
+5. Menjalankan `docker compose up -d --build` di dalam `/opt/frontend`.
+6. Health check menggunakan module `uri` Ansible pada endpoint root (`/`) dengan status code 200.
+
+---
+
+## Komponen yang Di-deploy
+
+| Komponen | Image         | Port | Keterangan                  |
+|----------|---------------|------|-----------------------------|
+| Frontend | nginx:alpine  | 80   | Static web app dengan Nginx |
+
+---
+
+## Fitur Frontend
+
+- **Login Simulation**: Form login yang mengirim request ke backend API.
+- **Register**: Form registrasi user baru.
+- **Responsive UI**: Antarmuka web dengan styling modern.
+- **API Integration**: Terhubung ke backend untuk autentikasi dan registrasi.
+
+---
+
+## Cara Menjalankan
+
+### 1. Jalankan seluruh playbook (Docker + Backend + Frontend)
+
+```bash
+ansible-playbook -i inventory.yml playbook.yml
+```
+
+Command ini menjalankan semua play dalam `playbook.yml` secara berurutan:
+- Play pertama (`docker_nodes`) menginstall Docker pada `node1` dan `node2`.
+- Play kedua (`backend`) men-deploy backend service pada `node1`.
+- Play ketiga (`frontend`) men-deploy frontend pada `node2`.
+
+### 2. Jalankan khusus role frontend saja
+
+Jika Docker dan backend sudah terinstall, dan hanya ingin menjalankan ulang deployment frontend:
+
+```bash
+ansible-playbook -i inventory.yml playbook.yml --limit frontend
+```
+
+Command ini membatasi eksekusi hanya pada host yang termasuk dalam group `frontend` (yaitu `node2`). Play lainnya akan di-skip untuk host yang tidak masuk filter. Play `frontend` akan:
+- Membuka port 80 di firewall `node2`.
+- Menyalin semua file dan template ke `/opt/frontend`.
+- Menjalankan `docker compose up -d --build` untuk membangun dan menjalankan container frontend dengan Nginx.
+- Menunggu hingga endpoint `http://localhost:80/` merespons HTTP 200 (maksimum 6 retry, interval 10 detik).
+
+### 3. Jalankan dengan mode verbose
+
+Untuk melihat detail output setiap task:
+
+```bash
+ansible-playbook -i inventory.yml playbook.yml --limit frontend -v
+```
+
+---
+
+## Verifikasi Frontend Manual
+
+### 1. Akses Frontend
+
+Buka browser dan akses:
+
+```
+http://192.168.1.15
+```
+
+Atau menggunakan curl:
+
+```bash
+curl http://192.168.1.15
+```
+
+Expected: HTML page untuk login/register app.
+
+### 2. Test Login
+
+- Buka halaman frontend di browser.
+- Pilih tab "Login".
+- Masukkan username dan password yang sudah terdaftar di backend.
+- Klik "Login" dan lihat pesan sukses/error.
+
+### 3. Test Register
+
+- Pilih tab "Register".
+- Masukkan username, email, dan password baru.
+- Klik "Register" dan lihat pesan sukses/error.
+
+---
+
+## Status
+
+- Infrastruktur siap
+- Docker berjalan di kedua node
+- Backend ter-deploy di node1
+- Frontend ter-deploy dan terverifikasi di node2
+- Aplikasi lengkap siap digunakan
