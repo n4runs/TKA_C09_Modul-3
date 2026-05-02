@@ -1,0 +1,5 @@
+db_name: "app_database"
+db_username: "db_admin"
+db_password: "SuperSecretPassword123"
+backend_port: 3000
+jwt_secret: "my_very_secure_jwt_secret_key"

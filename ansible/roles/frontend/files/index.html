@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Login App</title>
+  <script src="/config.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 40px; width: 420px; }
+    h1 { color: #e94560; text-align: center; margin-bottom: 8px; }
+    .subtitle { color: #aaa; text-align: center; margin-bottom: 24px; font-size: 14px; }
+    .tabs { display: flex; margin-bottom: 24px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); }
+    .tab { flex: 1; padding: 10px; background: transparent; color: #aaa; border: none; cursor: pointer; }
+    .tab.active { background: #e94560; color: #fff; font-weight: 600; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; color: #ccc; font-size: 13px; margin-bottom: 6px; }
+    input { width: 100%; padding: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
+    input:focus { border-color: #e94560; }
+    button[type="submit"] { width: 100%; padding: 13px; background: #e94560; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    #message { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; text-align: center; display: none; }
+    .success { background: rgba(46,213,115,0.15); color: #2ed573; border: 1px solid #2ed573; }
+    .error { background: rgba(233,69,96,0.15); color: #e94560; border: 1px solid #e94560; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>TKA 2026</h1>
+  <p class="subtitle">Login Simulation</p>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('login')">Login</button>
+    <button class="tab" onclick="switchTab('register')">Register</button>
+  </div>
+  <div id="loginForm">
+    <div class="form-group"><label>Username</label><input type="text" id="loginUsername" placeholder="Enter username"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="Enter password"/></div>
+    <button type="submit" onclick="doLogin()">Login</button>
+  </div>
+  <div id="registerForm" class="hidden">
+    <div class="form-group"><label>Username</label><input type="text" id="regUsername" placeholder="Choose username"/></div>
+    <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="Enter email"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="regPassword" placeholder="Choose password"/></div>
+    <button type="submit" onclick="doRegister()">Register</button>
+  </div>
+  <div id="message"></div>
+</div>
+<script>
+  const API = CONFIG.BACKEND_URL;
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+    document.getElementById('loginForm').classList.toggle('hidden', tab!=='login');
+    document.getElementById('registerForm').classList.toggle('hidden', tab!=='register');
+    document.getElementById('message').style.display='none';
+  }
+  function showMessage(text, type) {
+    const el = document.getElementById('message');
+    el.textContent = text; el.className = type; el.style.display = 'block';
+  }
+  async function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    if (!username || !password) return showMessage('Please fill all fields.', 'error');
+    try {
+      const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, password}) });
+      const data = await res.json();
+      if (res.ok) showMessage(`Login successful! Welcome, ${data.user?.username}`, 'success');
+      else showMessage(data.error || 'Login failed', 'error');
+    } catch(e) { showMessage('Cannot connect to backend.', 'error'); }
+  }
+  async function doRegister() {
+    const username = document.getElementById('regUsername').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value.trim();
+    if (!username || !email || !password) return showMessage('Please fill all fields.', 'error');
+    try {
+      const res = await fetch(`${API}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, email, password}) });
+      const data = await res.json();
+      if (res.ok) showMessage(`Registered! Welcome, ${data.user?.username}`, 'success');
+      else showMessage(data.error || 'Registration failed', 'error');
+    } catch(e) { showMessage('Cannot connect to backend.', 'error'); }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+---
+- name: Buka port firewall untuk frontend
+  ufw:
+    rule: allow
+    port: "{{ frontend_port }}"
+    proto: tcp
+
+- name: Buat direktori deployment frontend
+  file:
+    path: /opt/frontend
+    state: directory
+    mode: '0755'
+
+- name: Deploy Dockerfile
+  template:
+    src: Dockerfile.j2
+    dest: /opt/frontend/Dockerfile
+
+- name: Deploy config.js
+  template:
+    src: config.js.j2
+    dest: /opt/frontend/config.js
+
+- name: Deploy docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/frontend/docker-compose.yml
+
+- name: Deploy index.html
+  copy:
+    src: index.html
+    dest: /opt/frontend/index.html
+
+- name: Deploy nginx.conf
+  copy:
+    src: nginx.conf
+    dest: /opt/frontend/nginx.conf
+
+- name: Jalankan frontend dengan Docker Compose
+  command: docker compose up -d --build
+  args:
+    chdir: /opt/frontend
+
+- name: Health check frontend
+  uri:
+    url: "http://localhost:{{ frontend_port }}"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 6
+  delay: 10

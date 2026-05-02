@@ -1,0 +1,50 @@
+- name: Buka port firewall untuk backend ({{ backend_port }})
+  ufw:
+    rule: allow
+    port: "{{ backend_port }}"
+    proto: tcp
+
+- name: Buat direktori deployment backend
+  file:
+    path: /opt/backend
+    state: directory
+    mode: '0755'
+
+- name: Deploy Dockerfile template
+  template:
+    src: Dockerfile.j2
+    dest: /opt/backend/Dockerfile
+
+- name: Deploy .env template
+  template:
+    src: .env.j2
+    dest: /opt/backend/.env
+
+- name: Deploy docker-compose.yml template
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/backend/docker-compose.yml
+
+- name: Deploy package.json
+  copy:
+    src: package.json
+    dest: /opt/backend/package.json
+
+- name: Deploy index.js
+  copy:
+    src: index.js
+    dest: /opt/backend/index.js
+
+- name: Jalankan backend menggunakan Docker Compose
+  command: docker compose up -d --build
+  args:
+    chdir: /opt/backend
+
+- name: Tunggu backend siap (Healthcheck)
+  uri:
+    url: "http://localhost:{{ backend_port }}/health"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 6
+  delay: 10

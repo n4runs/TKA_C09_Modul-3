@@ -1,0 +1,18 @@
+all:
+  children:
+    docker_nodes:
+      hosts:
+        node1:
+          ansible_host: 10.223.11.191
+          ansible_user: ubuntu
+        node2:
+          ansible_host: 10.223.11.200
+          ansible_user: ubuntu
+
+    backend:
+      hosts:
+        node1:
+
+    frontend:
+      hosts:
+        node2:
