@@ -92,6 +92,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // Login user endpoint
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -133,6 +134,8 @@ app.post('/login', async (req, res) => {
   }
 });
 
+=======
+>>>>>>> 44e94adb89edd0d80552444b407254e38668eaae
 // Get all users
 app.get('/users', async (req, res) => {
   try {
