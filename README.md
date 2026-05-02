@@ -1,39 +1,52 @@
-# Praktikan 1 (Docker Setup dengan Ansible)
+# Modul 3 - Deployment Multi-Node dengan Ansible
 
-## 👤 Deskripsi
+## Deskripsi
 
-Repository ini berisi hasil pengerjaan **Praktikan 1** pada Modul 3 (Ansible), yaitu setup environment multi-node menggunakan Ansible dan instalasi Docker Engine pada setiap node.
-
-Setup ini akan menjadi **fondasi utama** untuk Praktikan 2 (backend) dan Praktikan 3 (frontend).
+Repository ini berisi hasil pengerjaan Modul 3 (Ansible) untuk deployment multi-node. Setup mencakup instalasi Docker Engine pada setiap node (Praktikan 1) dan deployment backend service (Praktikan 2).
 
 ---
 
-## 🧩 Arsitektur
+## Arsitektur
 
 ```
 C09 (Ansible Controller)
-   ↓ SSH
-node1 (backend target)
-node2 (frontend target)
+   |
+   | SSH
+   |
+   +-- node1 (backend target)  --> Express.js + PostgreSQL (port 3000)
+   |
+   +-- node2 (frontend target) --> (menunggu Praktikan 3)
 ```
 
 ---
 
-## 📁 Struktur Folder
+## Struktur Folder
 
 ```
 ansible/
 ├── inventory.yml
 ├── playbook.yml
+├── group_vars/
+│   └── backend.yml
 └── roles/
-    └── docker/
-        └── tasks/
-            └── main.yml
+    ├── docker/
+    │   └── tasks/
+    │       └── main.yml
+    └── backend/
+        ├── files/
+        │   ├── index.js
+        │   └── package.json
+        ├── tasks/
+        │   └── main.yml
+        └── templates/
+            ├── .env.j2
+            ├── Dockerfile.j2
+            └── docker-compose.yml.j2
 ```
 
 ---
 
-## ⚙️ Requirement
+## Requirement
 
 Pastikan environment berikut tersedia:
 
@@ -44,7 +57,7 @@ Pastikan environment berikut tersedia:
 
 ---
 
-## 🔑 Setup SSH (WAJIB)
+## Setup SSH (WAJIB)
 
 Dari dalam `C09`:
 
@@ -53,13 +66,11 @@ ssh ubuntu@192.168.1.14
 ssh ubuntu@192.168.1.15
 ```
 
-Jika tidak diminta password:
-
-> ✅ SSH sudah benar
+Jika tidak diminta password, SSH sudah benar.
 
 ---
 
-## 📄 Konfigurasi Inventory
+## Konfigurasi Inventory
 
 File: `inventory.yml`
 
@@ -86,12 +97,8 @@ all:
 
 ---
 
-## ▶️ Cara Menjalankan
+## Cara Menjalankan
 
-```
-kalo mau ngelanjutin dari gptku
-https://chatgpt.com/share/69f47b75-1058-8323-98fd-76b028401c95
-```
 ### 1. Test koneksi
 
 ```bash
@@ -105,8 +112,6 @@ node1 | SUCCESS
 node2 | SUCCESS
 ```
 
----
-
 ### 2. Jalankan playbook
 
 ```bash
@@ -115,7 +120,19 @@ ansible-playbook -i inventory.yml playbook.yml
 
 ---
 
-## 🐳 Verifikasi Docker
+## Praktikan 1 - Docker Setup
+
+### Deskripsi
+
+Praktikan 1 bertanggung jawab atas setup environment multi-node dan instalasi Docker Engine pada setiap node menggunakan Ansible.
+
+### Cakupan
+
+* Instalasi Docker CE, Docker CLI, containerd, dan Docker Compose plugin pada `node1` dan `node2`.
+* Konfigurasi firewall (UFW) dengan port 22 terbuka.
+* Start dan enable Docker service.
+
+### Verifikasi Docker
 
 Masuk ke masing-masing node:
 
@@ -135,11 +152,201 @@ Expected output:
 Hello from Docker!
 ```
 
+### Catatan
+
+* Docker Compose menggunakan versi terbaru dengan perintah `docker compose` (bukan `docker-compose`).
+* Jika muncul error permission, jalankan `sudo usermod -aG docker ubuntu` lalu login ulang.
+
 ---
 
-## ⚠️ Catatan Penting
+## Praktikan 2 - Backend Deployment
 
-### 1. Docker Compose
+### Deskripsi
+
+Praktikan 2 bertanggung jawab atas deployment backend service berbasis Node.js (Express) dan PostgreSQL pada `node1` menggunakan Docker Compose yang diorkestrasi oleh Ansible.
+
+### Cakupan
+
+* Role Ansible `backend` yang melakukan:
+  * Membuka port backend (3000) pada firewall.
+  * Membuat direktori deployment `/opt/backend`.
+  * Deploy template Dockerfile, `.env`, dan `docker-compose.yml` menggunakan Jinja2.
+  * Deploy source code aplikasi (`index.js`, `package.json`).
+  * Menjalankan `docker compose up -d --build`.
+  * Health check menggunakan module `uri` Ansible pada endpoint `/health`.
+
+### Konfigurasi Variabel
+
+File: `group_vars/backend.yml`
+
+```yaml
+db_name: "app_database"
+db_username: "db_admin"
+db_password: "SuperSecretPassword123"
+backend_port: 3000
+jwt_secret: "my_very_secure_jwt_secret_key"
+```
+
+### Komponen yang Di-deploy
+
+| Komponen   | Image             | Port | Keterangan                     |
+|------------|-------------------|------|--------------------------------|
+| PostgreSQL | postgres:15-alpine| 5432 | Database internal, tidak exposed|
+| Backend    | node:18-alpine    | 3000 | Express.js API                 |
+
+### Endpoint API
+
+| Method | Path        | Deskripsi                          |
+|--------|-------------|------------------------------------|
+| GET    | `/health`   | Health check, return status backend|
+| GET    | `/`         | Informasi versi API                |
+| POST   | `/register` | Registrasi user baru               |
+| GET    | `/users`    | Daftar seluruh user                |
+
+### Verifikasi Backend Manual
+
+#### 1. Health Check
+
+```bash
+curl http://192.168.1.14:3000/health
+```
+
+Expected:
+
+```json
+{"status":"ok","message":"Backend is healthy"}
+```
+
+#### 2. Register User
+
+```bash
+curl -X POST http://192.168.1.14:3000/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"testuser@example.com","password":"password123"}'
+```
+
+Expected:
+
+```json
+{
+  "message": "User registered successfully",
+  "user": {
+    "id": 1,
+    "username": "testuser",
+    "email": "testuser@example.com",
+    "created_at": "2026-05-02T11:43:56.029Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+#### 3. Lihat Daftar User
+
+```bash
+curl http://192.168.1.14:3000/users
+```
+
+---
+
+## Untuk Praktikan 3 (LANJUT DARI SINI)
+
+Praktikan 3 bertanggung jawab atas deployment frontend pada `node2`.
+
+### 1. Role baru: frontend
+
+Buat folder dengan struktur berikut:
+
+```
+roles/frontend/
+├── files/
+│   └── (file statis frontend jika ada)
+├── tasks/
+│   └── main.yml
+└── templates/
+    ├── config.js.j2
+    ├── Dockerfile.j2
+    └── docker-compose.yml.j2
+```
+
+### 2. Gunakan group frontend
+
+Node frontend sudah disiapkan di inventory:
+
+```yaml
+frontend:
+  hosts:
+    node2:
+```
+
+### 3. Variabel yang perlu disiapkan
+
+Buat file `group_vars/frontend.yml` dengan isi:
+
+```yaml
+frontend_port: <port_frontend>
+backend_url: "http://{{ hostvars['node1']['ansible_host'] }}:{{ hostvars['node1']['backend_port'] | default(3000) }}"
+```
+
+Catatan: `backend_url` wajib menggunakan Jinja2 template yang merujuk ke variabel dari Ansible inventory. Tidak boleh hardcode IP address. Jika terdapat isu konektivitas akibat double layer virtualization (misalnya WSL), sesuaikan dengan IP yang dapat dijangkau oleh `node2`.
+
+### 4. Buat Dockerfile frontend
+
+Gunakan base image `nginx`. Dockerfile harus meng-copy file konfigurasi nginx dan file statis frontend ke dalam container.
+
+### 5. Buat template Jinja2
+
+Buat minimal dua template:
+
+* `config.js.j2` - Konfigurasi frontend yang berisi `backend_url` agar frontend mengetahui alamat backend API.
+* `docker-compose.yml.j2` - Definisi service frontend dengan port mapping sesuai variabel `frontend_port`.
+
+### 6. Buat task utama
+
+File `tasks/main.yml` harus memuat task berikut:
+
+1. Buka port frontend pada firewall menggunakan module `ufw`:
+
+```yaml
+- name: Buka port firewall untuk frontend ({{ frontend_port }})
+  ufw:
+    rule: allow
+    port: "{{ frontend_port }}"
+    proto: tcp
+```
+
+2. Buat direktori deployment, deploy semua template dan file yang diperlukan.
+
+3. Jalankan container menggunakan `docker compose up -d --build`.
+
+4. Lakukan health check menggunakan module `uri`:
+
+```yaml
+- name: Tunggu frontend siap (Healthcheck)
+  uri:
+    url: "http://localhost:{{ frontend_port }}"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 6
+  delay: 10
+```
+
+### 7. Update playbook.yml
+
+Tambahkan play berikut pada `playbook.yml`:
+
+```yaml
+- hosts: frontend
+  become: yes
+  roles:
+    - frontend
+```
+
+---
+
+## Catatan Penting
+
+### Docker Compose
 
 Menggunakan versi terbaru:
 
@@ -147,11 +354,9 @@ Menggunakan versi terbaru:
 docker compose
 ```
 
-(BUKAN `docker-compose`)
+Bukan `docker-compose`.
 
----
-
-### 2. Permission Docker
+### Permission Docker
 
 Jika muncul error permission:
 
@@ -161,106 +366,28 @@ sudo usermod -aG docker ubuntu
 
 Lalu login ulang.
 
----
+### Firewall
 
-### 3. Firewall
+Port yang dibuka per node:
 
-Hanya port 22 yang dibuka sesuai requirement praktikum.
-
----
-
-## 🚀 Untuk Praktikan 2 (LANJUT DARI SINI)
-
-Kamu akan mengerjakan:
-
-### 📌 1. Role baru: backend
-
-Buat folder:
-
-```
-roles/backend/
-```
+| Node  | Port | Keterangan |
+|-------|------|------------|
+| node1 | 22   | SSH        |
+| node1 | 3000 | Backend    |
+| node2 | 22   | SSH        |
+| node2 | (menunggu Praktikan 3) | Frontend |
 
 ---
 
-### 📌 2. Gunakan group `backend`
+## Status
 
-Node backend sudah disiapkan di:
-
-```yaml
-backend:
-  hosts:
-    node1
-```
+* Infrastruktur siap
+* Docker berjalan di kedua node
+* Backend ter-deploy dan terverifikasi di node1
+* Menunggu deploy frontend di node2
 
 ---
 
-### 📌 3. Variabel yang perlu disiapkan
+## Penutup
 
-Gunakan `group_vars/backend.yml`:
-
-```yaml
-db_name:
-db_username:
-db_password:
-backend_port:
-jwt_secret:
-```
-
----
-
-### 📌 4. Yang perlu kamu buat
-
-* Dockerfile backend
-* Template `.env` (Jinja2)
-* Template `docker-compose.yml`
-* Task untuk:
-
-  * membuka port backend
-  * menjalankan container
-  * health check (`uri`)
-
----
-
-### 📌 5. Update playbook.yml
-
-Tambahkan:
-
-```yaml
-- hosts: backend
-  become: yes
-  roles:
-    - backend
-```
-
----
-
-## 🧠 Tips dari Praktikan 1
-
-* Jangan ubah role docker (sudah stabil)
-* Test backend tanpa frontend dulu
-* Gunakan `ansible --limit backend` saat debugging
-* Pastikan endpoint `/health` bisa diakses sebelum lanjut
-
----
-
-## 🎯 Status
-
-✔ Infrastruktur siap
-✔ Docker berjalan
-✔ Siap deploy backend
-
----
-
-## 📌 Penutup
-
-Environment ini sudah siap digunakan untuk:
-
-* Deployment backend (Praktikan 2)
-* Deployment frontend (Praktikan 3)
-
-Silakan lanjutkan implementasi sesuai modul.
-
----
-
-Good luck 🚀
+Environment ini sudah siap digunakan untuk deployment frontend oleh Praktikan 3. Backend API berjalan di `node1:3000` dan dapat diakses dari `node2` melalui jaringan internal.
